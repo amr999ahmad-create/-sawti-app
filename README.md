@@ -426,3 +426,5 @@
   </script>
 </body>
 </html>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff2a6d">
