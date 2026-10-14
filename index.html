@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sawti - صوتي</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
+body{background:#0f0f0f;color:#fff;min-height:100vh;padding:20px}
+.header{text-align:center;padding:30px 0}
+.header h1{font-size:42px;background:linear-gradient(45deg,#ff006e,#ffbe0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{color:#888;margin-top:10px}
+.record-box{background:#1a1a1a;border-radius:24px;padding:30px;text-align:center;margin:20px 0;border:1px solid #333}
+#recBtn{width:100px;height:100px;border-radius:50%;border:none;background:linear-gradient(45deg,#ff006e,#ff006e);font-size:40px;cursor:pointer;transition:0.3s;box-shadow:0 0 30px #ff006e66}
+#recBtn.recording{animation:pulse 1s infinite;background:#ff0000;transform:scale(1.1)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 #ff000055}70%{box-shadow:0 0 0 20px #ff000000}100%{box-shadow:0 0 0 0 #ff000000}}
+#timer{font-size:32px;margin:20px 0;font-weight:bold;letter-spacing:2px}
+#status{color:#aaa}
+.list{margin-top:30px}
+.audio-item{background:#1a1a1a;border-radius:16px;padding:15px;margin:10px 0;display:flex;align-items:center;justify-content:space-between;border:1px solid #2a2a2a}
+.audio-item audio{flex:1;margin-left:10px}
+.btns button{background:#2a2a2a;border:none;color:#fff;padding:8px 12px;border-radius:8px;margin:0 3px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Sawti صوتي</h1>
+<p>سجل أفكارك بصوتك - بسرعة وسهولة</p>
+</div>
+
+<div class="record-box">
+<button id="recBtn">🎤</button>
+<div id="timer">00:00</div>
+<div id="status">دوس للتسجيل</div>
+</div>
+
+<div class="list" id="list">
+<h3 style="margin-bottom:15px">🎧 تسجيلاتك</h3>
+<div id="audios"></div>
+</div>
+
+<script>
+let mediaRecorder, chunks=[], startTime, timerInt, isRec=false;
+const recBtn=document.getElementById('recBtn'), timer=document.getElementById('timer'), status=document.getElementById('status'), audiosDiv=document.getElementById('audios');
+let audiosList=JSON.parse(localStorage.getItem('sawti')||'[]');
+
+function render(){
+audiosDiv.innerHTML=audiosList.length? '': '<p style="color:#555;text-align:center;padding:20px">لا يوجد تسجيلات بعد</p>';
+audiosList.slice().reverse().forEach((a,i)=>{
+const realIndex=audiosList.length-1-i;
+const div=document.createElement('div');div.className='audio-item';
+div.innerHTML=`<div><div style="font-size:14px">${a.date}</div><div style="font-size:12px;color:#888">${a.time}</div></div><audio controls src="${a.data}"></audio><div class="btns"><button onclick="del(${realIndex})">🗑️</button></div>`;
+audiosDiv.appendChild(div);
+});
+}
+render();
+
+recBtn.onclick=async()=>{
+if(!isRec){
+try{
+const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+mediaRecorder=new MediaRecorder(stream);chunks=[];
+mediaRecorder.ondataavailable=e=>chunks.push(e.data);
+mediaRecorder.onstop=()=>{
+const blob=new Blob(chunks,{type:'audio/webm'});
+const reader=new FileReader();
+reader.onload=()=>{
+audiosList.push({data:reader.result,date:new Date().toLocaleDateString('ar-YE'),time:timer.textContent});
+localStorage.setItem('sawti',JSON.stringify(audiosList));render();
+};
+reader.readAsDataURL(blob);
+};
+mediaRecorder.start();isRec=true;startTime=Date.now();
+recBtn.classList.add('recording');recBtn.textContent='⏹️';status.textContent='جاري التسجيل... دوس للإيقاف';status.style.color='#ff006e';
+timerInt=setInterval(()=>{let s=Math.floor((Date.now()-startTime)/1000);let m=Math.floor(s/60);s%=60;timer.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`},100);
+}catch(e){alert('اسمح بالميكروفون أولا')}
+}else{
+mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());
+isRec=false;clearInterval(timerInt);recBtn.classList.remove('recording');recBtn.textContent='🎤';status.textContent='تم الحفظ! ✅';status.style.color='#0f0';timer.textContent='00:00';
+setTimeout(()=>{status.textContent='دوس للتسجيل';status.style.color='#aaa'},2000);
+}
+};
+function del(i){if(confirm('تحذف التسجيل؟')){audiosList.splice(i,1);localStorage.setItem('sawti',JSON.stringify(audiosList));render();}}
+</script>
+</body>
+</html>
